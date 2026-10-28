@@ -20,7 +20,7 @@ Dataset: https://www.tensorflow.org/datasets/catalog/cats_vs_dogs
 ## Trained Model Files
 The trained model files are hosted on Hugging Face:
 
-https://huggingface.co/awaisrao/cat-dog-classification-dl
+https://huggingface.co/awaisrao/cat-dog-classification-dl/tree/main
 
 The repository contains the original Keras model and weights. A TensorFlow Lite version was also generated for a smaller model footprint.
 
