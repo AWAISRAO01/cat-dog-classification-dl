@@ -1,11 +1,14 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cat vs Dog Classifier</title>
+
   <style>
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
@@ -16,6 +19,7 @@
       place-items: center;
       padding: 24px;
     }
+
     .card {
       width: 100%;
       max-width: 650px;
@@ -25,8 +29,10 @@
       box-shadow: 0 15px 45px #00000012;
       text-align: center;
     }
-    h1 { margin: 0 0 12px; color: #4338ca; }
+
+    h1 { color: #4338ca; }
     p { color: #6b7280; line-height: 1.6; }
+
     .upload {
       display: block;
       border: 2px dashed #a5b4fc;
@@ -36,7 +42,9 @@
       cursor: pointer;
       background: #f8faff;
     }
+
     input { max-width: 100%; margin-top: 14px; }
+
     img {
       display: none;
       max-width: 100%;
@@ -45,6 +53,7 @@
       border-radius: 14px;
       object-fit: contain;
     }
+
     button {
       border: 0;
       border-radius: 10px;
@@ -54,21 +63,37 @@
       font-size: 16px;
       cursor: pointer;
     }
-    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
     #result {
       margin-top: 20px;
       padding: 16px;
       background: #f3f4f6;
       border-radius: 12px;
+      overflow-wrap: anywhere;
     }
+
     .links { margin-top: 24px; font-size: 14px; }
     a { color: #4338ca; }
   </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.22.0/dist/tf-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@4.22.0/dist/tf-backend-cpu.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js"></script>
 </head>
+
 <body>
   <main class="card">
     <h1>🐱 Cat vs Dog Classifier 🐶</h1>
-    <p>Upload an image to classify it as a cat or a dog using a deep learning model.</p>
+
+    <p>
+      Upload an image and let the trained deep learning model
+      predict whether it is a cat or a dog.
+    </p>
 
     <label class="upload">
       <strong>Select an image</strong>
@@ -79,14 +104,22 @@
     <img id="preview" alt="Selected image preview">
 
     <button id="predictBtn" disabled>Predict Image</button>
-    <div id="result" role="status">Choose an image to get started.</div>
+
+    <div id="result" role="status" aria-live="polite">
+      Choose an image to get started.
+    </div>
 
     <div class="links">
-      <p>Project source code:
-        <a href="https://github.com/AWAISRAO01/cat-dog-classification-dl" target="_blank" rel="noopener">GitHub</a>
+      <p>
+        Project source code:
+        <a href="https://github.com/AWAISRAO01/cat-dog-classification-dl"
+           target="_blank" rel="noopener">GitHub</a>
       </p>
-      <p>Trained model:
-        <a href="https://huggingface.co/awaisrao/cat-dog-classification-dl" target="_blank" rel="noopener">Hugging Face</a>
+
+      <p>
+        Trained model:
+        <a href="https://huggingface.co/awaisrao/cat-dog-classification-dl"
+           target="_blank" rel="noopener">Hugging Face</a>
       </p>
     </div>
   </main>
@@ -97,25 +130,108 @@
     const button = document.getElementById("predictBtn");
     const result = document.getElementById("result");
 
+    const modelUrl =
+      "https://huggingface.co/awaisrao/cat-dog-classification-dl/resolve/main/cat_dog_model.tflite";
+
+    let model = null;
+    let selectedFile = null;
+    let isBusy = false;
+
     input.addEventListener("change", () => {
       const file = input.files[0];
+
       if (!file) return;
 
       if (!file.type.startsWith("image/")) {
-        result.textContent = "Please select a valid image.";
+        selectedFile = null;
         button.disabled = true;
+        result.textContent = "Please select a valid image.";
         return;
       }
 
+      selectedFile = file;
       preview.src = URL.createObjectURL(file);
       preview.style.display = "block";
-      button.disabled = false;
-      result.textContent = "Image selected. Prediction API will be connected next.";
+      button.disabled = isBusy;
+      result.textContent = "Image selected. Ready to predict.";
     });
 
-    button.addEventListener("click", () => {
+    async function loadModel() {
+      if (model) return model;
+
       result.textContent =
-        "Image preview works. The trained model prediction will be enabled after the inference service is connected.";
+        "Loading trained model (about 21 MB)... Please wait.";
+
+      await tf.ready();
+
+      model = await tflite.loadTFLiteModel(modelUrl, {
+        numThreads: 1
+      });
+
+      return model;
+    }
+
+    button.addEventListener("click", async () => {
+      if (!selectedFile || isBusy) return;
+
+      isBusy = true;
+      button.disabled = true;
+
+      let inputTensor = null;
+      let outputTensor = null;
+
+      try {
+        const activeModel = await loadModel();
+
+        result.textContent = "Analyzing image...";
+
+        // Ensure the selected image is fully decoded.
+        await preview.decode();
+
+        // Model input: 160 x 160 RGB, values normalized to [0, 1].
+        inputTensor = tf.tidy(() => {
+          const pixels = tf.browser.fromPixels(preview);
+          const resized = tf.image.resizeBilinear(
+            pixels, [160, 160]
+          );
+
+          return resized.toFloat().div(255).expandDims(0);
+        });
+
+        outputTensor = activeModel.predict(inputTensor);
+
+        const values = await outputTensor.data();
+        const score = Number(values[0]);
+
+        if (!Number.isFinite(score)) {
+          throw new Error("Model returned an invalid prediction.");
+        }
+
+        // The training pipeline uses sigmoid output:
+        // score >= 0.5 means Dog; otherwise Cat.
+        const isDog = score >= 0.5;
+        const confidence = isDog ? score : 1 - score;
+        const label = isDog ? "Dog 🐶" : "Cat 🐱";
+
+        result.textContent =
+          `Prediction: ${label} | Model score: ${score.toFixed(3)} | ` +
+          `Confidence: ${(confidence * 100).toFixed(1)}%`;
+
+      } catch (error) {
+        console.error("Prediction error:", error);
+        model = null;
+
+        result.textContent =
+          "Prediction failed. Check your internet connection and " +
+          "ensure the TFLite model URL is accessible. Details: " +
+          (error.message || "Unknown error");
+      } finally {
+        if (inputTensor) inputTensor.dispose();
+        if (outputTensor) outputTensor.dispose();
+
+        isBusy = false;
+        button.disabled = !selectedFile;
+      }
     });
   </script>
 </body>
