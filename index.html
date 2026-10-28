@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cat vs Dog Classifier</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #eef2ff, #fdf2f8);
+      color: #1f2937;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 650px;
+      background: white;
+      padding: 32px;
+      border-radius: 22px;
+      box-shadow: 0 15px 45px #00000012;
+      text-align: center;
+    }
+    h1 { margin: 0 0 12px; color: #4338ca; }
+    p { color: #6b7280; line-height: 1.6; }
+    .upload {
+      display: block;
+      border: 2px dashed #a5b4fc;
+      border-radius: 16px;
+      padding: 28px 16px;
+      margin: 24px 0;
+      cursor: pointer;
+      background: #f8faff;
+    }
+    input { max-width: 100%; margin-top: 14px; }
+    img {
+      display: none;
+      max-width: 100%;
+      max-height: 320px;
+      margin: 20px auto;
+      border-radius: 14px;
+      object-fit: contain;
+    }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 13px 24px;
+      background: #4f46e5;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #result {
+      margin-top: 20px;
+      padding: 16px;
+      background: #f3f4f6;
+      border-radius: 12px;
+    }
+    .links { margin-top: 24px; font-size: 14px; }
+    a { color: #4338ca; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>🐱 Cat vs Dog Classifier 🐶</h1>
+    <p>Upload an image to classify it as a cat or a dog using a deep learning model.</p>
+
+    <label class="upload">
+      <strong>Select an image</strong>
+      <br>
+      <input id="imageInput" type="file" accept="image/*">
+    </label>
+
+    <img id="preview" alt="Selected image preview">
+
+    <button id="predictBtn" disabled>Predict Image</button>
+    <div id="result" role="status">Choose an image to get started.</div>
+
+    <div class="links">
+      <p>Project source code:
+        <a href="https://github.com/AWAISRAO01/cat-dog-classification-dl" target="_blank" rel="noopener">GitHub</a>
+      </p>
+      <p>Trained model:
+        <a href="https://huggingface.co/awaisrao/cat-dog-classification-dl" target="_blank" rel="noopener">Hugging Face</a>
+      </p>
+    </div>
+  </main>
+
+  <script>
+    const input = document.getElementById("imageInput");
+    const preview = document.getElementById("preview");
+    const button = document.getElementById("predictBtn");
+    const result = document.getElementById("result");
+
+    input.addEventListener("change", () => {
+      const file = input.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith("image/")) {
+        result.textContent = "Please select a valid image.";
+        button.disabled = true;
+        return;
+      }
+
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+      button.disabled = false;
+      result.textContent = "Image selected. Prediction API will be connected next.";
+    });
+
+    button.addEventListener("click", () => {
+      result.textContent =
+        "Image preview works. The trained model prediction will be enabled after the inference service is connected.";
+    });
+  </script>
+</body>
+</html>
