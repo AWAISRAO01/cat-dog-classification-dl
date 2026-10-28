@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -78,11 +77,10 @@
     }
 
     .links { margin-top: 24px; font-size: 14px; }
-    a { color: #4338ca; }
+    a { color: #4338ca; font-weight: bold; }
   </style>
 
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.22.0/dist/tf-core.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@4.22.0/dist/tf-backend-cpu.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js"></script>
 </head>
 
@@ -111,15 +109,12 @@
 
     <div class="links">
       <p>
-        Project source code:
-        <a href="https://github.com/AWAISRAO01/cat-dog-classification-dl"
-           target="_blank" rel="noopener">GitHub</a>
+        Project Source Code: 
+        <a href="https://github.com/AWAISRAO01/cat-dog-classification-dl" target="_blank" rel="noopener">GitHub Repository</a>
       </p>
-
       <p>
-        Trained model:
-        <a href="https://huggingface.co/awaisrao/cat-dog-classification-dl"
-           target="_blank" rel="noopener">Hugging Face</a>
+        Trained Model Weights: 
+        <a href="https://huggingface.co/awaisrao/cat-dog-classification-dl" target="_blank" rel="noopener">Hugging Face Model</a>
       </p>
     </div>
   </main>
@@ -130,7 +125,11 @@
     const button = document.getElementById("predictBtn");
     const result = document.getElementById("result");
 
-   const modelUrl = "https://raw.githubusercontent.com/AWAISRAO01/cat-dog-classification-dl/main/cat_dog_model.tflite";
+    const modelUrl = "https://raw.githubusercontent.com/AWAISRAO01/cat-dog-classification-dl/main/cat_dog_model.tflite";
+    
+    // Set explicit WASM path to prevent '_malloc' error
+    tflite.setWasmPath("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/");
+
     let model = null;
     let selectedFile = null;
     let isBusy = false;
@@ -157,14 +156,11 @@
     async function loadModel() {
       if (model) return model;
 
-      result.textContent =
-        "Loading trained model (about 21 MB)... Please wait.";
+      result.textContent = "Loading trained model... Please wait.";
 
       await tf.ready();
 
-      model = await tflite.loadTFLiteModel(modelUrl, {
-        numThreads: 1
-      });
+      model = await tflite.loadTFLiteModel(modelUrl);
 
       return model;
     }
@@ -183,16 +179,11 @@
 
         result.textContent = "Analyzing image...";
 
-        // Ensure the selected image is fully decoded.
         await preview.decode();
 
-        // Model input: 160 x 160 RGB, values normalized to [0, 1].
         inputTensor = tf.tidy(() => {
           const pixels = tf.browser.fromPixels(preview);
-          const resized = tf.image.resizeBilinear(
-            pixels, [160, 160]
-          );
-
+          const resized = tf.image.resizeBilinear(pixels, [160, 160]);
           return resized.toFloat().div(255).expandDims(0);
         });
 
@@ -205,8 +196,6 @@
           throw new Error("Model returned an invalid prediction.");
         }
 
-        // The training pipeline uses sigmoid output:
-        // score >= 0.5 means Dog; otherwise Cat.
         const isDog = score >= 0.5;
         const confidence = isDog ? score : 1 - score;
         const label = isDog ? "Dog 🐶" : "Cat 🐱";
@@ -220,8 +209,7 @@
         model = null;
 
         result.textContent =
-          "Prediction failed. Check your internet connection and " +
-          "ensure the TFLite model URL is accessible. Details: " +
+          "Prediction failed. Please check connection or model path. Details: " +
           (error.message || "Unknown error");
       } finally {
         if (inputTensor) inputTensor.dispose();
